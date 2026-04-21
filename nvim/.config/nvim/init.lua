@@ -149,6 +149,7 @@ require("lazy").setup({
 
   -- Colorschemes
   { "bavajitu/brellary.nvim" },
+  { "yonatanperel/lake-dweller.nvim" },
   { 'alligator/accent.vim' },
   { "loctvl842/monokai-pro.nvim" },
   { 'aditya-azad/candle-grey' },
@@ -502,7 +503,8 @@ require("lazy").setup({
       { "<leader>fh", "<cmd>Telescope help_tags<cr>", desc = "Help Tags" },
       { "<leader>fr", "<cmd>Telescope lsp_references<cr>", desc = "LSP References" },
       { "<leader>fd", "<cmd>Telescope lsp_document_symbols<cr>", desc = "Document Symbols" },
-      { "<leader>fc", "<cmd>Telescope colorscheme<cr>", desc = "Colorschemes" },
+      { "<leader>cf", "<cmd>Telescope colorscheme<cr>", desc = "Colorschemes" },
+      { "<leader>fc", "<cmd>Telescope current_buffer_fuzzy_find<cr>", desc = "Fuzzy Find Current Buffer" },
     },
     opts = {
       pickers = {
