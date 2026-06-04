@@ -21,7 +21,7 @@ vim.opt.smartindent = true
 vim.opt.clipboard = 'unnamed'
 vim.opt.laststatus = 2
 vim.opt.swapfile = false
-vim.opt.pumheight = 10
+vim.opt.pumheight = 7
 
 vim.diagnostic.config({
   virtual_text = { severity = vim.diagnostic.severity.ERROR },
@@ -46,7 +46,7 @@ vim.api.nvim_create_autocmd('TextYankPost', {
 
 -- Bootstrap lazy.nvim
 local lazypath = vim.fn.stdpath("data") .. "/lazy/lazy.nvim"
-if not vim.loop.fs_stat(lazypath) then
+if not vim.uv.fs_stat(lazypath) then
   vim.fn.system({
     "git", "clone", "--filter=blob:none",
     "https://github.com/folke/lazy.nvim.git",
@@ -91,6 +91,22 @@ require("lazy").setup({
     },
   },
 
+  --Outline
+    {
+      "hedyhli/outline.nvim",
+      config = function()
+        -- Example mapping to toggle outline
+        vim.keymap.set("n", "<leader>o", "<cmd>Outline<CR>",
+          { desc = "Toggle Outline" })
+
+        require("outline").setup {
+          -- Your setup opts here (leave empty to use defaults)
+            outline_window = {
+                position = "left"
+            }
+        }
+      end,
+    },
   -- Multicursor
   {
     "jake-stewart/multicursor.nvim",
@@ -241,7 +257,18 @@ require("lazy").setup({
   { "nyoom-engineering/oxocarbon.nvim" },
 
   -- Utilities
-  { "folke/snacks.nvim" },
+  {
+    "folke/snacks.nvim",
+    priority = 1000,
+    lazy = false,
+    opts = {
+      bigfile = { enabled = true },
+      notifier = { enabled = true },
+      quickfile = { enabled = true },
+      indent = { enabled = false },
+      input = { enabled = true },
+    },
+  },
   {
       "Sang-it/fluoride",
       config = function()
@@ -318,7 +345,6 @@ require("lazy").setup({
   },
 
   -- File explorer
-  { "preservim/nerdtree", cmd = "NERDTreeToggle" },
   {
     "stevearc/oil.nvim",
     opts = {
@@ -330,8 +356,22 @@ require("lazy").setup({
   },
 
   -- Editing
-  { "jiangmiao/auto-pairs" },
-  { "tpope/vim-surround" },
+  { "echasnovski/mini.pairs", event = "InsertEnter", opts = {} },
+  {
+    "echasnovski/mini.surround",
+    event = "VeryLazy",
+    opts = {
+      mappings = {
+        add = "ys",
+        delete = "ds",
+        replace = "cs",
+        find = "",
+        find_left = "",
+        highlight = "",
+        update_n_lines = "",
+      },
+    },
+  },
   { "shortcuts/no-neck-pain.nvim", cmd = "NoNeckPain" },
   {
       "nvim-mini/mini.splitjoin",
@@ -345,7 +385,6 @@ require("lazy").setup({
     "neovim/nvim-lspconfig",
     dependencies = {
       "williamboman/mason.nvim",
-      "hrsh7th/cmp-nvim-lsp",
     },
     config = function()
       require('mason').setup({})
@@ -354,7 +393,7 @@ require("lazy").setup({
         settings = {
           basedpyright = {
             analysis = {
-              typeCheckingMode = 'basic',
+              typeCheckingMode = 'off',
               useLibraryCodeForTypes = true,
               inlayHints = {
                 callArgumentNames = true,
@@ -365,9 +404,35 @@ require("lazy").setup({
             },
           },
         },
+        on_attach = function(client, _)
+          local caps = client.server_capabilities
+          caps.completionProvider = nil
+          caps.signatureHelpProvider = nil
+          caps.definitionProvider = nil
+          caps.typeDefinitionProvider = nil
+          caps.implementationProvider = nil
+          caps.referencesProvider = nil
+          caps.documentHighlightProvider = nil
+          caps.documentSymbolProvider = nil
+          caps.workspaceSymbolProvider = nil
+          caps.codeActionProvider = nil
+          caps.codeLensProvider = nil
+          caps.documentFormattingProvider = nil
+          caps.documentRangeFormattingProvider = nil
+          caps.renameProvider = nil
+          caps.foldingRangeProvider = nil
+          caps.selectionRangeProvider = nil
+          caps.semanticTokensProvider = nil
+          caps.inlayHintProvider = nil
+          -- diagnostics aren't gated by server_capabilities — drop them
+          client.handlers["textDocument/publishDiagnostics"] = function() end
+        end,
       })
       vim.lsp.config('vtsls', {
-          filetypes = { "ts" },
+          filetypes = { "ts", "js", "jsx", "tsx" },
+      })
+      vim.lsp.config('gopls', {
+          filetypes = {'go'},
       })
       vim.lsp.config('clangd', {
         cmd = { "clangd", "--offset-encoding=utf-16" },
@@ -375,18 +440,25 @@ require("lazy").setup({
       vim.lsp.config('lua_ls', {
           filetypes = { "lua" },
       })
-      vim.lsp.config('ruff', {
-        on_attach = function(client)
-          client.server_capabilities.hoverProvider = false
-        end,
-        filetypes = { "python" }
+      vim.lsp.config('pyrefly', {
+          filetypes = { "python" },
+          on_attach = function(client, _)
+            -- basedpyright handles hover
+            client.server_capabilities.hoverProvider = nil
+          end,
       })
-      vim.lsp.config('ty', {
-        on_attach = function(client)
-          client.server_capabilities.hoverProvider = false
-        end,
-        filetypes = { "python" }
-      })
+      -- vim.lsp.config('ruff', {
+      --   on_attach = function(client)
+      --     client.server_capabilities.hoverProvider = false
+      --   end,
+      --   filetypes = { "python" }
+      -- })
+      -- vim.lsp.config('ty', {
+      --   on_attach = function(client)
+      --     client.server_capabilities.hoverProvider = false
+      --   end,
+      --   filetypes = { "python" }
+      -- })
       vim.lsp.config('html', { filetypes = { "html" } })
       vim.lsp.config('rust_analyzer', {
         init_options = {
@@ -434,61 +506,45 @@ require("lazy").setup({
   },
   -- Completion
   {
-    "hrsh7th/nvim-cmp",
+    "saghen/blink.cmp",
+    version = "1.*",
     event = "InsertEnter",
     dependencies = {
-      "hrsh7th/cmp-nvim-lsp",
-      "L3MON4D3/LuaSnip",
+      {
+        "L3MON4D3/LuaSnip",
+        version = "v2.*",
+        build = "make install_jsregexp",
+        dependencies = { "rafamadriz/friendly-snippets" },
+        config = function()
+          require("luasnip.loaders.from_vscode").lazy_load()
+        end,
+      },
     },
-    config = function()
-      local cmp = require('cmp')
-      local compare = require('cmp.config.compare')
-      local types = require('cmp.types')
-      cmp.setup({
-        sources = { { name = 'nvim_lsp' } },
-        sorting = {
-          comparators = {
-            compare.exact,
-            compare.score,
-            compare.recently_used,
-            compare.locality,
-            function(entry1, entry2)
-              local kind1 = entry1:get_kind()
-              local kind2 = entry2:get_kind()
-              local member = types.lsp.CompletionItemKind.EnumMember
-              if kind1 == member and kind2 ~= member then return true end
-              if kind1 ~= member and kind2 == member then return false end
-              return nil
-            end,
-            compare.kind,
-            compare.offset,
-            compare.length,
-            compare.order,
-          },
-        },
-        mapping = {
-          ['<CR>'] = cmp.mapping.confirm({ select = false }),
-          ['<C-e>'] = cmp.mapping.abort(),
-          ['<Up>'] = cmp.mapping.select_prev_item({ behavior = 'select' }),
-          ['<Down>'] = cmp.mapping.select_next_item({ behavior = 'select' }),
-          ['<C-k>'] = cmp.mapping(function()
-            if cmp.visible() then cmp.select_prev_item({ behavior = 'insert' })
-            else cmp.complete() end
-          end),
-          ['<C-j>'] = cmp.mapping(function()
-            if cmp.visible() then cmp.select_next_item({ behavior = 'insert' })
-            else cmp.complete() end
-          end),
-        },
-        snippet = {
-          expand = function(args) require('luasnip').lsp_expand(args.body) end,
-        },
-        window = {
-          documentation = { border = "rounded", winhighlight = "Normal:Pmenu,FloatBorder:Pmenu,Search:None" },
-          completion = { border = "rounded", winhighlight = "Normal:Pmenu,FloatBorder:Pmenu,Search:None" },
-        },
-      })
-    end,
+    opts = {
+      snippets = { preset = "luasnip" },
+      keymap = {
+        preset = "none",
+        ["<CR>"] = { "accept", "fallback" },
+        ["<C-e>"] = { "cancel", "fallback" },
+        ["<Up>"] = { "select_prev", "fallback" },
+        ["<Down>"] = { "select_next", "fallback" },
+        ["<C-k>"] = { "show", "select_prev", "fallback" },
+        ["<C-j>"] = { "show", "select_next", "fallback" },
+        ["<C-b>"] = { "scroll_documentation_up", "fallback" },
+        ["<C-f>"] = { "scroll_documentation_down", "fallback" },
+        ["<Tab>"] = { "snippet_forward", "fallback" },
+        ["<S-Tab>"] = { "snippet_backward", "fallback" },
+      },
+      completion = {
+        documentation = { auto_show = true, auto_show_delay_ms = 200 },
+        menu = { border = "rounded", max_height = 7 },
+        list = { max_items = 7 },
+        ghost_text = { enabled = true },
+      },
+      sources = {
+        default = { "lsp", "path", "snippets", "buffer" },
+      },
+    },
   },
 
   -- Telescope
@@ -512,9 +568,6 @@ require("lazy").setup({
       },
     },
   },
-
-  -- FZF
-  { "junegunn/fzf", build = function() vim.fn["fzf#install"]() end },
 
   -- Statusline
   {
@@ -580,8 +633,8 @@ vim.keymap.set('n', 'gD', vim.lsp.buf.declaration, { desc = "Go to declaration" 
 vim.keymap.set({'n', 'i'}, '<C-x>', function() vim.lsp.buf.signature_help() end, { desc = "Signature help" })
 
 -- Keymaps
-vim.keymap.set('n', "<leader>gn", vim.diagnostic.goto_next)
-vim.keymap.set('n', "<leader>gp", vim.diagnostic.goto_prev)
+vim.keymap.set('n', "<leader>gn", function() vim.diagnostic.jump({ count = 1 }) end)
+vim.keymap.set('n', "<leader>gp", function() vim.diagnostic.jump({ count = -1 }) end)
 vim.keymap.set("n", "<leader>bg", function()
   if vim.o.background == "dark" then vim.o.background = "light"
   else vim.o.background = "dark" end
@@ -648,7 +701,7 @@ else
 end
 
 -- LSP
-vim.lsp.enable({ 'ruff', 'clangd', 'html', 'rust_analyzer' , 'ty', 'basedpyright', 'texlab', 'lua_ls', 'vtsls'})
+vim.lsp.enable({ 'clangd', 'html', 'rust_analyzer' , 'texlab', 'lua_ls', 'vtsls', 'pyrefly', 'ts_ls', 'basedpyright', 'gopls'})
 
 -- vim.api.nvim_create_autocmd('LspAttach', {
 --     callback = function(ev)
