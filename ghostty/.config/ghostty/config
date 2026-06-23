@@ -1,3 +1,8 @@
-theme=dark:Gruvbox Material Dark,light:Gruvbox Material Light
+theme=dark:Gruvbox Material Dark,light:Light Owl
 font-family=JetBrains Mono NL
+# Quake terminal
 keybind = global:cmd+backquote=toggle_quick_terminal
+cursor-style-blink = true
+cursor-style = bar
+macos-icon=holographic
+macos-titlebar-style=hidden

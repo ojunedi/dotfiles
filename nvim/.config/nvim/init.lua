@@ -1,3 +1,5 @@
+vim.env.PATH = vim.env.HOME .. "/.ghcup/bin:" .. vim.env.HOME .. "/.cabal/bin:" .. vim.env.PATH
+
 -- Editor Settings
 vim.g.mapleader = " "
 vim.o.guicursor = "i:ver1"
@@ -44,6 +46,25 @@ vim.api.nvim_create_autocmd('TextYankPost', {
   end,
 })
 
+vim.api.nvim_create_autocmd("ColorSchemePre", {
+  pattern = "gruvbox-material",
+  callback = function()
+    vim.g.gruvbox_material_background = 'hard'
+
+    -- Hard-swap palette colors at the source: every token follows automatically.
+    -- Each entry is { gui_hex, cterm }. Two-way swap: orange ↔ green.
+    vim.g.gruvbox_material_colors_override = {
+
+      yellow = { '#d3869b', '175' },  -- purple
+      purple = { '#a9b665', '214' },  -- yellow
+      green  = { '#7daea3', '109' },  -- blue
+      blue   = { '#d8a657', '142' },  -- green
+      -- orange = { '#a9b665', '142' },  -- green
+      -- green  = { '#e78a4e', '208' },  -- orange
+    }
+  end,
+})
+
 -- Bootstrap lazy.nvim
 local lazypath = vim.fn.stdpath("data") .. "/lazy/lazy.nvim"
 if not vim.uv.fs_stat(lazypath) then
@@ -58,6 +79,21 @@ vim.opt.rtp:prepend(lazypath)
 -- Plugin specifications
 require("lazy").setup({
   -- Git
+  {
+      "neogitorg/neogit",
+      lazy = true,
+      dependencies = {
+        -- Only one of these is needed.
+        "sindrets/diffview.nvim",        -- optional
+        -- "esmuellert/codediff.nvim",
+      },
+      cmd = "Neogit",
+      keys = {
+        { "<leader>gg", "<cmd>Neogit<cr>", desc = "Show Neogit UI" }
+      }
+
+
+  },
   { "tpope/vim-fugitive", cmd = { "Git", "G" } },
   {
     "lewis6991/gitsigns.nvim",
@@ -164,6 +200,9 @@ require("lazy").setup({
   -- },
 
   -- Colorschemes
+  { "oskarnurm/koda.nvim" },
+  { "slugbyte/lackluster.nvim" },
+  { "dchinmay2/alabaster.nvim" },
   { "bavajitu/brellary.nvim" },
   { "yonatanperel/lake-dweller.nvim" },
   { 'alligator/accent.vim' },
@@ -215,15 +254,18 @@ require("lazy").setup({
       vim.g.gruvbox_italicize_strings = 1
       vim.g.gruvbox_invert_selection = 0
       vim.g.gruvbox_contrast_dark = "hard"
-      vim.g.gruvbox_material_background = 'hard'
-      vim.cmd("colorscheme gruvbox-material")
-      vim.g.gruvbox_material_background = 'hard'
       local marked = vim.api.nvim_get_hl(0, { name = 'PMenu' })
       vim.api.nvim_set_hl(0, 'LspSignatureActiveParameter', { fg = marked.fg, bg = marked.bg, ctermfg = marked.ctermfg, ctermbg = marked.ctermbg, bold = true })
       vim.api.nvim_set_hl(0, "@variable.builtin", { link = "@variable" })
     end,
   },
-  { "sainnhe/gruvbox-material" },
+  { "sainnhe/gruvbox-material",
+    config = function ()
+      vim.o.background = 'dark'
+      vim.g.gruvbox_material_background = 'hard'
+      vim.cmd("colorscheme gruvbox-material")
+    end,
+  },
   { "olivercederborg/poimandres.nvim" },
   {
     "rebelot/kanagawa.nvim",
@@ -352,6 +394,11 @@ require("lazy").setup({
         show_hidden = false,
         sort = { { "type", "asc" } },
       },
+      columns = {
+          "permissions",
+          "size",
+          "icon",
+      }
     },
   },
 
@@ -459,6 +506,7 @@ require("lazy").setup({
       --   end,
       --   filetypes = { "python" }
       -- })
+      vim.lsp.config('hls', { filetypes = {"haskell"}})
       vim.lsp.config('html', { filetypes = { "html" } })
       vim.lsp.config('rust_analyzer', {
         init_options = {
@@ -635,10 +683,20 @@ vim.keymap.set({'n', 'i'}, '<C-x>', function() vim.lsp.buf.signature_help() end,
 -- Keymaps
 vim.keymap.set('n', "<leader>gn", function() vim.diagnostic.jump({ count = 1 }) end)
 vim.keymap.set('n', "<leader>gp", function() vim.diagnostic.jump({ count = -1 }) end)
+vim.cmd("colorscheme gruvbox-material")
+local LIGHT = "alabaster"
+local DARK = "gruvbox-material"
+
 vim.keymap.set("n", "<leader>bg", function()
-  if vim.o.background == "dark" then vim.o.background = "light"
-  else vim.o.background = "dark" end
-end, { desc = "Toggle background light/dark" })
+  if vim.g.colors_name == DARK then
+    vim.o.background = "light"
+    vim.cmd.colorscheme(LIGHT)
+  else
+    vim.o.background = "dark"
+    vim.g.gruvbox_material_background = 'hard'
+    vim.cmd.colorscheme(DARK)
+  end
+end, { desc = "Toggle theme light/dark" })
 vim.keymap.set('n', '<leader>O', '<cmd>Oil<CR>')
 vim.keymap.set('n', '<C-d>', '<C-d>zz')
 vim.keymap.set('n', '<C-u>', '<C-u>zz')
@@ -650,6 +708,8 @@ vim.keymap.set('n', "<C-j>", "<cmd>cprev<CR>zz")
 vim.keymap.set('n', "dv", '"_dd')
 vim.keymap.set('i', "<C-c>", "<Esc>")
 vim.keymap.set("n", "ycc", "yygccp", { remap = true })
+vim.keymap.set({"x", "n"}, "H", "^")
+vim.keymap.set({"x", "n"}, "L", "$")
 vim.keymap.set('v', "J", ":m '>+1<CR>gv=gv")
 vim.keymap.set('n', '<leader>ca', vim.lsp.buf.code_action, { desc = "LSP Code Actions" })
 
@@ -701,7 +761,7 @@ else
 end
 
 -- LSP
-vim.lsp.enable({ 'clangd', 'html', 'rust_analyzer' , 'texlab', 'lua_ls', 'vtsls', 'pyrefly', 'ts_ls', 'basedpyright', 'gopls'})
+vim.lsp.enable({ 'clangd', 'html', 'rust_analyzer' , 'texlab', 'lua_ls', 'vtsls', 'pyrefly', 'ts_ls', 'basedpyright', 'gopls', 'hls'})
 
 -- vim.api.nvim_create_autocmd('LspAttach', {
 --     callback = function(ev)

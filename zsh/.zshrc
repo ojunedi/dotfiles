@@ -25,6 +25,7 @@ function y() {
 # If you come from bash you might have to change your $PATH.
 # export PATH=$HOME/bin:/usr/local/bin:$PATH
 
+export PATH="$HOME/.ghcup/bin:$HOME/.cabal/bin:$PATH"
 # Path to your oh-my-zsh installation.
 export ZSH="$HOME/.oh-my-zsh"
 PS1='%m %1d$ '
@@ -156,12 +157,13 @@ export FZF_DEFAULT_OPTS="--bind 'ctrl-y:execute(readlink -f {} | xclip -selectio
 
 alias vim='nvim'
 alias lg='lazygit'
+alias np='git log @{u}..'
 
 # export PATH="/opt/homebrew/opt/openjdk/bin:$PATH"
 source /Users/omerjunedi/.oh-my-zsh/custom/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
 
 export PATH="/opt/homebrew/anaconda3/bin:$PATH"
-export TERM="xterm-256color"
+export TERM="xterm-ghostty"
 # export TERM="screen-256color"
 # source "$HOME/.vim/bundle/gruvbox/gruvbox_256palette.sh"
 ZSH_AUTOSUGGEST_HIGHLIGHT_STYLE='fg=243'
