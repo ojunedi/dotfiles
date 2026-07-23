@@ -54,13 +54,10 @@ vim.api.nvim_create_autocmd("ColorSchemePre", {
     -- Hard-swap palette colors at the source: every token follows automatically.
     -- Each entry is { gui_hex, cterm }. Two-way swap: orange ↔ green.
     vim.g.gruvbox_material_colors_override = {
-
       yellow = { '#d3869b', '175' },  -- purple
-      purple = { '#a9b665', '214' },  -- yellow
+      purple = { '#a9b665', '214' },  -- green
       green  = { '#7daea3', '109' },  -- blue
-      blue   = { '#d8a657', '142' },  -- green
-      -- orange = { '#a9b665', '142' },  -- green
-      -- green  = { '#e78a4e', '208' },  -- orange
+      blue   = { '#d8a657', '142' },  -- yellow
     }
   end,
 })
@@ -78,6 +75,36 @@ vim.opt.rtp:prepend(lazypath)
 
 -- Plugin specifications
 require("lazy").setup({
+  -- Cppman
+  {
+  "simonwinther/cppman.nvim",
+  version = "*",
+  cmd = "CPPMan",
+  dependencies = {
+    "ibhagwan/fzf-lua",
+  },
+  opts = {
+    picker = {
+      provider = "fzf-lua",
+    },
+  },
+  -- Buffer-local maps in C/C++ files only, so they don't show up in other
+  -- filetypes. The require() calls load the plugin on first use.
+  init = function()
+    vim.api.nvim_create_autocmd("FileType", {
+      pattern = { "cpp", "c" },
+      callback = function(args)
+        vim.keymap.set("n", "<leader>cu", function()
+          require("cppman").open_for(vim.fn.expand("<cword>"))
+        end, { buffer = args.buf, desc = "[C++] open under cursor" })
+
+        vim.keymap.set("n", "<leader>ck", function()
+          require("cppman").search()
+        end, { buffer = args.buf, desc = "[C++] keyword search" })
+      end,
+    })
+  end,
+},
   -- Git
   {
       "neogitorg/neogit",
@@ -93,6 +120,9 @@ require("lazy").setup({
       }
 
 
+  },
+  {
+    "3rd/image.nvim",
   },
   { "tpope/vim-fugitive", cmd = { "Git", "G" } },
   {
@@ -476,7 +506,7 @@ require("lazy").setup({
         end,
       })
       vim.lsp.config('vtsls', {
-          filetypes = { "ts", "js", "jsx", "tsx" },
+          filetypes = { "typescript", "javascript", "javascriptreact", "typescriptreact" },
       })
       vim.lsp.config('gopls', {
           filetypes = {'go'},
@@ -567,6 +597,7 @@ require("lazy").setup({
           require("luasnip.loaders.from_vscode").lazy_load()
         end,
       },
+      { "Kaiser-Yang/blink-cmp-dictionary", dependencies = { "nvim-lua/plenary.nvim" } },
     },
     opts = {
       snippets = { preset = "luasnip" },
@@ -585,13 +616,79 @@ require("lazy").setup({
       },
       completion = {
         documentation = { auto_show = true, auto_show_delay_ms = 200 },
-        menu = { border = "rounded", max_height = 7 },
-        list = { max_items = 7 },
-        ghost_text = { enabled = true },
+        -- In prose mode the menu only appears when summoned with <C-k>/<C-j>,
+        -- instead of popping up automatically as you type.
+        menu = {
+          border = "none",
+          max_height = 10,
+          auto_show = function() return not vim.g.prose_mode end,
+        },
+        -- list = { max_items = 10 },
+        ghost_text = { enabled = function() return not vim.g.prose_mode end },
       },
       sources = {
-        default = { "lsp", "path", "snippets", "buffer" },
+        -- Swap to writing-oriented sources when we're in prose, otherwise
+        -- use the usual code sources. "Prose" = real markdown/text/commit
+        -- buffers, OR English embedded in JSX text / string literals (e.g.
+        -- blog posts authored inside .tsx).
+        default = function()
+          -- Manual override: <leader>w toggles prose mode for the whole editor.
+          if vim.g.prose_mode then
+            return { "dictionary", "buffer" }
+          end
+
+          local prose_fts = { markdown = true, text = true, gitcommit = true, tex = true }
+          if prose_fts[vim.bo.filetype] then
+            return { "dictionary", "buffer" }
+          end
+
+          -- The cursor often sits on the boundary between jsx_text and the
+          -- closing tag, so check both the node under the cursor and the one
+          -- just to its left, walking up parents to catch string contexts.
+          local row, col = unpack(vim.api.nvim_win_get_cursor(0))
+          local function node_at(offset)
+            local ok, node = pcall(vim.treesitter.get_node, {
+              pos = { row - 1, math.max(col + offset, 0) },
+            })
+            return ok and node or nil
+          end
+
+          for _, start in ipairs({ node_at(0), node_at(-1) }) do
+            local node = start
+            while node do
+              local t = node:type()
+              if t == "jsx_text"
+                or t == "string"
+                or t == "string_fragment"
+                or t == "template_string" then
+                return { "dictionary", "buffer" }
+              end
+              node = node:parent()
+            end
+          end
+
+          return { "lsp", "path", "snippets", "buffer" }
+        end,
+        providers = {
+          dictionary = {
+            module = "blink-cmp-dictionary",
+            name = "Dict",
+            min_keyword_length = 3,
+            opts = {
+              dictionary_files = { "/usr/share/dict/words" },
+            },
+          },
+        },
       },
+      enabled = function()
+        -- Keep autocomplete off inside code comments.
+        local ok, node = pcall(vim.treesitter.get_node)
+        return not (ok and node ~= nil and vim.tbl_contains({
+          "comment",
+          "line_comment",
+          "block_comment",
+        }, node:type()))
+      end,
     },
   },
 
@@ -667,6 +764,12 @@ vim.keymap.set('n', 'K', function()
   vim.lsp.buf.hover({ border = "single" })
 end)
 
+-- Toggle prose/writing autocomplete (dictionary instead of code completion)
+vim.keymap.set('n', '<leader>w', function()
+  vim.g.prose_mode = not vim.g.prose_mode
+  vim.notify('Prose mode: ' .. (vim.g.prose_mode and 'ON' or 'OFF'))
+end, { desc = "Toggle prose autocomplete" })
+
 -- DAP keymaps
 vim.keymap.set('n', '<leader>db', function() require('dap').toggle_breakpoint() end, { desc = "Toggle breakpoint" })
 vim.keymap.set('n', '<leader>dc', function() require('dap').continue() end, { desc = "Start/continue debugging" })
@@ -705,11 +808,10 @@ vim.keymap.set('n', '<leader>bd', '<cmd>bd<CR>')
 vim.keymap.set('n', '<leader>so', '<cmd>so ~/.config/nvim/init.lua<CR>')
 vim.keymap.set('n', "<C-k>", "<cmd>cnext<CR>zz")
 vim.keymap.set('n', "<C-j>", "<cmd>cprev<CR>zz")
-vim.keymap.set('n', "dv", '"_dd')
 vim.keymap.set('i', "<C-c>", "<Esc>")
 vim.keymap.set("n", "ycc", "yygccp", { remap = true })
-vim.keymap.set({"x", "n"}, "H", "^")
-vim.keymap.set({"x", "n"}, "L", "$")
+vim.keymap.set({"x", "n", "o"}, "H", "^")
+vim.keymap.set({"x", "n", "o"}, "L", "$")
 vim.keymap.set('v', "J", ":m '>+1<CR>gv=gv")
 vim.keymap.set('n', '<leader>ca', vim.lsp.buf.code_action, { desc = "LSP Code Actions" })
 
@@ -791,3 +893,7 @@ vim.api.nvim_create_autocmd("InsertLeave", {
       vim.diagnostic.config({ virtual_text = true })
     end,
 })
+
+vim.keymap.set('n', '<leader>k', function()
+   vim.cmd('!cppman ' .. vim.fn.expand('<cword>'))
+end, { desc = 'cppreference docs' })

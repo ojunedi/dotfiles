@@ -205,3 +205,5 @@ if [[ "$ZSH_THEME" == "arrow" ]]; then
   PROMPT='%{%F{117}%}%c ➤ %{$reset_color%}'
   RPROMPT='%{%F{117}%} $(git_prompt_info)%{$reset_color%}'
 fi
+export PATH="/opt/homebrew/opt/llvm/bin:$PATH"
+# source ~/.ghcup/env

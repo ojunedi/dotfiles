@@ -1,8 +1,9 @@
 theme=dark:Gruvbox Material Dark,light:Light Owl
 font-family=JetBrains Mono NL
+# font-family=Fira Mono
 # Quake terminal
 keybind = global:cmd+backquote=toggle_quick_terminal
 cursor-style-blink = true
 cursor-style = bar
 macos-icon=holographic
-macos-titlebar-style=hidden
+# macos-titlebar-style=hidden
